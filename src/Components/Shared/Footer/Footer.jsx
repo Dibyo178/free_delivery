@@ -63,7 +63,7 @@ const Footer = () => {
               <img 
                 src={logo} 
                 alt="FoodMenu BD" 
-                className="h-12 w-auto brightness-0 invert transition-transform duration-500 group-hover:scale-105" 
+                className="h-25 w-auto brightness-0 invert transition-transform duration-500 group-hover:scale-105" 
               />
             </Link>
             <p className="text-slate-400 text-base leading-relaxed max-w-sm">
@@ -109,11 +109,11 @@ const Footer = () => {
             <div className="space-y-4">
               <div className="flex items-start gap-3 text-slate-400 group">
                 <MapPin size={18} className="text-red-500 shrink-0" />
-                <span className="text-sm group-hover:text-slate-200 transition-colors">Sylhet, Bangladesh</span>
+                <span className="text-sm group-hover:text-slate-200 transition-colors">Berlin, Germany</span>
               </div>
               <div className="flex items-center gap-3 text-slate-400 group">
                 <Mail size={18} className="text-red-500 shrink-0" />
-                <a href="mailto:info@smithitbd.com" className="text-sm group-hover:text-slate-200 transition-colors">info@smithitbd.com</a>
+                <a href="mailto:info@freedelivery.com" className="text-sm group-hover:text-slate-200 transition-colors">info@smithitbd.com</a>
               </div>
             </div>
             
