@@ -30,7 +30,8 @@ const ConfirmCart = lazy(() => import("./Components/Cart/ConfirmCart.jsx"));
 const CheckoutBox = lazy(() => import('./Components/Cart/CheckoutBox'));
 const OrderSuccess = lazy(() => import('./Components/Cart/OrderSuccess.jsx'));
 const TemplatePage = lazy(() => import("./Pages/Home/TemplatePage.jsx"));
-
+const AboutUs = lazy(() => import('./Pages/Home/AboutUs.jsx')); 
+const ContactUs = lazy(() => import('./Pages/Home/ContactUs.jsx'));
 // Admin Pages
 const Dashboard = lazy(() => import("./Pages/Admin/Dashboard.jsx"));
 const AddArea = lazy(() => import("./Pages/Admin/AddArea.jsx"));
@@ -130,6 +131,8 @@ const AppContent = () => {
                 <Route path="/cart/:restaurantSlug/ConfirmCart/CheckoutBox" element={<PageWrapper><CheckoutBox /></PageWrapper>} />
                 <Route path="/cart/:restaurantSlug/ConfirmCart/CheckoutBox/OrderSuccess" element={<PageWrapper><OrderSuccess /></PageWrapper>} />
                 <Route path="/templates" element={<PageWrapper><TemplatePage /></PageWrapper>} />
+                <Route path="/about" element={<PageWrapper><AboutUs /></PageWrapper>} />
+                <Route path="/contact" element={<PageWrapper><ContactUs /></PageWrapper>} />
               </Route>
 
               {/* --- 3. Admin Routes --- */}
