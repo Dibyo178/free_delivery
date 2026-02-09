@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import Swal from 'sweetalert2'; // 🔥 SweetAlert2 Import
+import Swal from 'sweetalert2';
+import { loadStripe } from '@stripe/stripe-js'; // সঠিক ইমপোর্ট: @stripe/stripe-js
 import {
-  FaPlus, FaMinus, FaChevronLeft, FaShoppingBag,
-  FaTrashAlt, FaUtensils, FaCheckCircle, FaStore, FaMotorcycle, FaClock
+  FaPlus, FaMinus, FaChevronLeft, FaUtensils, 
+  FaMotorcycle, FaClock, FaPaperPlane, FaMoneyBillWave, FaCreditCard,
+  FaUser, FaPhoneAlt, FaMapMarkerAlt
 } from 'react-icons/fa';
-import CheckoutBox from './CheckoutBox';
 import OrderSuccess from './OrderSuccess';
+
+// আপনার স্ট্রাইপ পাবলিশেবল কী এখানে দিন
+const stripePromise = loadStripe("pk_test_your_public_key");
 
 const ConfirmCart = () => {
   const { restaurantSlug } = useParams();
@@ -15,227 +19,227 @@ const ConfirmCart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderData, setOrderData] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   
+  // কন্টাক্ট এবং এড্রেস ইনফো
+  const [userInfo, setUserInfo] = useState({
+    name: '',
+    phone: '',
+    address: ''
+  });
+
   const [selectedArea, setSelectedArea] = useState('Select Area');
+  const [paymentMethod, setPaymentMethod] = useState('COD'); // ডিফল্ট COD
+  
   const cartKey = `global_cart_data`;
 
-  const areaCharges = { Zindabazar: 40, Amberkhana: 50, Shibgonj: 60, Uposhohor: 55, Others: 80 };
+  const areaCharges = { 
+    Zindabazar: 40, Amberkhana: 50, Shibgonj: 60, Uposhohor: 55, Others: 80 
+  };
+  
   const currentCharge = areaCharges[selectedArea] || 0;
 
   useEffect(() => {
-    let initialCart = [];
-    if (location.state && location.state.cart) {
-      initialCart = location.state.cart;
-      sessionStorage.setItem(cartKey, JSON.stringify(initialCart));
-    } else {
-      const saved = JSON.parse(sessionStorage.getItem(cartKey)) || [];
-      initialCart = saved;
-    }
-    setCartItems(initialCart);
+    const saved = JSON.parse(sessionStorage.getItem(cartKey)) || [];
+    setCartItems(saved);
     window.scrollTo(0, 0);
-  }, [cartKey, location.state]);
-
-  // --- GROUPING LOGIC ---
-  const groupedCart = cartItems.reduce((groups, item) => {
-    const group = item.restaurantSlug || restaurantSlug || 'Other Store';
-    if (!groups[group]) groups[group] = [];
-    groups[group].push(item);
-    return groups;
-  }, {});
-
-  // --- 🔥 PROFESSIONAL REMOVE RESTAURANT LOGIC ---
-  const handleRemoveRestaurant = (slug) => {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: `Apni ki "${slug.replace(/-/g, ' ')}" er shob item remove korte chan?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#be1e2d',
-      cancelButtonColor: '#6e7881',
-      confirmButtonText: 'Yes, Remove It!',
-      cancelButtonText: 'No, Keep It',
-      customClass: {
-        popup: 'rounded-[30px]',
-        title: 'font-black text-gray-800',
-        confirmButton: 'rounded-xl px-6 py-3 font-bold',
-        cancelButton: 'rounded-xl px-6 py-3 font-bold'
-      }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const updated = cartItems.filter(item => item.restaurantSlug !== slug);
-        setCartItems(updated);
-        sessionStorage.setItem(cartKey, JSON.stringify(updated));
-        
-        // Show a small success toast
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: 'Restaurant removed from basket',
-          showConfirmButton: false,
-          timer: 2000,
-          timerProgressBar: true
-        });
-      }
-    });
-  };
-
-  const updateQuantity = (name, resSlug, delta) => {
-    let msg = '';
-    let type = 'success';
-    const updated = cartItems.map(item => {
-        if (item.name === name && (item.restaurantSlug === resSlug)) {
-          const qty = Math.max(0, item.quantity + delta);
-          msg = qty === 0 ? `${name} removed` : `${qty}x ${name} in basket`;
-          type = qty === 0 ? 'remove' : 'update';
-          return { ...item, quantity: qty };
-        }
-        return item;
-      }).filter(i => i.quantity > 0);
-
-    setCartItems(updated);
-    sessionStorage.setItem(cartKey, JSON.stringify(updated));
-    setToast({ show: true, message: msg, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 2000);
-  };
+  }, []);
 
   const totalAmount = cartItems.reduce((a, i) => a + i.price * i.quantity, 0);
+  const finalTotal = totalAmount + currentCharge;
+
+  const handleInputChange = (e) => {
+    setUserInfo({ ...userInfo, [e.target.name]: e.target.value });
+  };
+
+const handleConfirmOrder = async () => {
+  if (!userInfo.name || !userInfo.phone || !userInfo.address) {
+    return Swal.fire('Missing Info', 'Please provide name, phone and address', 'warning');
+  }
+  if (selectedArea === 'Select Area') {
+    return Swal.fire('Error', 'Please select a delivery area', 'error');
+  }
+
+  if (paymentMethod === 'Online') {
+    Swal.fire({
+      title: 'Redirecting to Stripe...',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+
+    try {
+      const stripe = await stripePromise;
+
+      // ১. আপনার ব্যাকএন্ড এপিআই কল করুন সেশন আইডি পাওয়ার জন্য
+      const response = await fetch("YOUR_BACKEND_URL/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cartItems,
+          customer: userInfo,
+          total: finalTotal
+        }),
+      });
+
+      const session = await response.json();
+
+      // ২. স্ট্রাইপ চেকআউটে রিডাইরেক্ট করুন
+      const result = await stripe.redirectToCheckout({
+        sessionId: session.id,
+      });
+
+      if (result.error) {
+        Swal.fire('Error', result.error.message, 'error');
+      }
+    } catch (error) {
+      console.error("Stripe Error:", error);
+      Swal.fire('Error', 'Failed to connect to Stripe. Try COD.', 'error');
+    }
+  } else {
+    // ক্যাশ অন ডেলিভারি আগের মতোই কাজ করবে
+    setOrderData({ 
+      total: finalTotal, 
+      area: selectedArea, 
+      method: 'Cash on Delivery',
+      customer: userInfo 
+    });
+    setShowSuccess(true);
+    sessionStorage.removeItem(cartKey);
+  }
+};
 
   return (
     <div className="bg-[#fcfdfe] min-h-screen px-4 md:px-10 py-6 md:py-10 font-inter">
       <div className="max-w-[1150px] mx-auto">
+        
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 font-bold mb-6 hover:text-black">
+          <FaChevronLeft size={12} /> Return to Menu
+        </button>
 
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="group flex items-center gap-3 bg-white border border-black/5 px-5 py-2 rounded-full shadow-lg hover:-translate-x-1 transition-all"
-          >
-            <div className="w-8 h-8 rounded-full bg-[#E3242B] text-white flex items-center justify-center shadow-md">
-              <FaChevronLeft size={10} />
-            </div>
-            <span className="text-xs md:text-sm font-extrabold text-gray-700">Return to Menu</span>
-          </button>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-10">
+          
+          {/* অর্ডার সামারি */}
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black flex items-center gap-2 text-gray-900">
+              <FaUtensils className="text-[#be1e2d]" /> Order Summary
+            </h2>
 
-          <div className="flex items-center gap-3 bg-white px-5 py-2.5 rounded-full border border-[#be1e2d15] shadow-sm">
-            <div className="w-2 h-2 bg-[#be1e2d] rounded-full animate-pulse" />
-            <FaShoppingBag size={12} className="text-[#be1e2d]" />
-            <span className="text-[10px] md:text-[11px] font-extrabold tracking-widest text-[#be1e2d] uppercase">
-              {cartItems.length} Items Selected
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 md:gap-10 items-start">
-
-          {/* CART ITEMS LIST */}
-          <div className="flex flex-col gap-8">
-            <div className="flex items-center gap-3 mb-2">
-              <FaUtensils className="text-[#be1e2d] text-xl" />
-              <h2 className="text-xl md:text-3xl font-extrabold text-gray-900">Order Summary</h2>
-            </div>
-
-            {Object.keys(groupedCart).length > 0 ? Object.keys(groupedCart).map((resSlug) => (
-              <div key={resSlug} className="bg-white/50 rounded-[35px] border border-dashed border-gray-200 overflow-hidden">
-                {/* Restaurant Label */}
-                <div className="flex items-center justify-between px-6 py-4 bg-white/30 border-b border-dashed border-gray-200">
-                  <div className="flex items-center gap-2 text-[#be1e2d] font-black uppercase italic text-sm tracking-widest">
-                    <FaStore size={14} /> {resSlug.replace(/-/g, ' ')}
+            <div className="space-y-4">
+              {cartItems.map((item, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-[25px] border border-gray-100 flex items-center gap-4 shadow-sm">
+                  <img src={item.img} className="w-16 h-16 rounded-xl object-cover" alt={item.name} />
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-800">{item.name}</h4>
+                    <p className="text-sm font-bold text-[#be1e2d]">৳{item.price}</p>
                   </div>
+                  <div className="bg-gray-100 px-3 py-1 rounded-full font-black text-xs">x{item.quantity}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-white p-5 rounded-[25px] border border-dashed border-gray-200 flex justify-between">
+              <div className="flex items-center gap-2 text-gray-600">
+                <FaMotorcycle /> <span className="text-xs font-black uppercase tracking-tight">Fee: ৳{currentCharge}</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600">
+                <FaClock /> <span className="text-xs font-black uppercase tracking-tight">30-45 Mins</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ডেলিভারি এবং পেমেন্ট ফর্ম */}
+          <div className="sticky top-6">
+            <div className="bg-white p-6 rounded-[35px] shadow-2xl border border-gray-50">
+              <h3 className="text-xl font-black mb-6 text-gray-900">Delivery Information</h3>
+              
+              {/* কন্টাক্ট ফিল্ডস */}
+              <div className="space-y-4 mb-6">
+                <div className="relative">
+                  <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                  <input 
+                    type="text" name="name" placeholder="Full Name" value={userInfo.name} onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl font-bold text-sm focus:ring-2 focus:ring-[#be1e2d] outline-none"
+                  />
+                </div>
+                <div className="relative">
+                  <FaPhoneAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                  <input 
+                    type="tel" name="phone" placeholder="Contact Number" value={userInfo.phone} onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl font-bold text-sm focus:ring-2 focus:ring-[#be1e2d] outline-none"
+                  />
+                </div>
+                <div className="relative">
+                  <FaMapMarkerAlt className="absolute left-4 top-4 text-gray-400 text-xs" />
+                  <textarea 
+                    name="address" placeholder="Full Delivery Address" rows="2" value={userInfo.address} onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl font-bold text-sm focus:ring-2 focus:ring-[#be1e2d] outline-none resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* এরিয়া সিলেকশন */}
+              <div className="mb-6">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Delivery Area</label>
+                <select 
+                  value={selectedArea}
+                  onChange={(e) => setSelectedArea(e.target.value)}
+                  className="w-full mt-1 p-3.5 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 outline-none focus:ring-2 focus:ring-[#be1e2d]"
+                >
+                  <option disabled>Select Area</option>
+                  {Object.keys(areaCharges).map(area => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* পেমেন্ট মেথড */}
+              <div className="mb-8">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Payment Method</label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
                   <button 
-                    onClick={() => handleRemoveRestaurant(resSlug)} // 🔥 Triggering the Swal alert
-                    className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                    onClick={() => setPaymentMethod('COD')}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'COD' ? 'border-[#be1e2d] bg-red-50' : 'border-gray-100'}`}
                   >
-                    <FaTrashAlt size={12} />
+                    <FaMoneyBillWave className={paymentMethod === 'COD' ? 'text-[#be1e2d]' : 'text-gray-400'} />
+                    <span className="text-[9px] font-black">CASH ON DELIVERY</span>
+                  </button>
+                  <button 
+                    onClick={() => setPaymentMethod('Online')}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${paymentMethod === 'Online' ? 'border-[#be1e2d] bg-red-50' : 'border-gray-100'}`}
+                  >
+                    <FaCreditCard className={paymentMethod === 'Online' ? 'text-[#be1e2d]' : 'text-gray-400'} />
+                    <span className="text-[9px] font-black">ONLINE PAYMENT</span>
                   </button>
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-4 p-4">
-                  {groupedCart[resSlug].map((item, idx) => (
-                    <div key={idx} className="bg-white p-4 md:p-5 rounded-3xl border border-gray-100 flex items-center gap-4 shadow-sm">
-                      <div className="relative flex-shrink-0">
-                        <img src={item.img} alt={item.name} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover" />
-                        <span className="absolute -top-2 -right-2 bg-[#be1e2d] text-white text-[10px] font-black px-2 py-0.5 rounded-lg border-2 border-white">
-                          {item.quantity}x
-                        </span>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm md:text-base font-black text-gray-900 truncate">{item.name}</h4>
-                        <p className="text-[10px] md:text-xs text-gray-400 font-bold uppercase mt-1">৳{item.price}</p>
-                      </div>
-
-                      <div className="flex items-center bg-gray-50 p-1 rounded-2xl gap-2 border border-gray-100">
-                        <button onClick={() => updateQuantity(item.name, resSlug, -1)} className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
-                          {item.quantity === 1 ? <FaTrashAlt size={12} /> : <FaMinus size={10} />}
-                        </button>
-                        <span className="w-4 text-center font-black text-gray-800 text-sm">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.name, resSlug, 1)} className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400 hover:text-green-500 transition-all">
-                          <FaPlus size={10} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              {/* টোটাল ক্যালকুলেশন */}
+              <div className="space-y-2 border-t border-dashed pt-4">
+                <div className="flex justify-between font-bold text-gray-500 text-sm">
+                  <span>Subtotal</span>
+                  <span>৳{totalAmount}</span>
                 </div>
-
-                {/* INDIVIDUAL RESTAURANT CHARGES & TIME */}
-                <div className="bg-red-50/50 px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-t border-red-50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-sm">
-                       <FaMotorcycle className="text-[#be1e2d] text-xs" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-gray-400 uppercase leading-none">Delivery Fee</span>
-                      <span className="text-xs font-black text-gray-700 leading-tight">৳{currentCharge}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-sm">
-                       <FaClock className="text-blue-500 text-xs" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-gray-400 uppercase leading-none">Est. Time</span>
-                      <span className="text-xs font-black text-gray-700 leading-tight">30-45 Mins</span>
-                    </div>
-                  </div>
+                <div className="flex justify-between font-bold text-gray-500 text-sm">
+                  <span>Delivery Fee</span>
+                  <span>৳{currentCharge}</span>
+                </div>
+                <div className="flex justify-between text-2xl font-black text-gray-900 pt-2 border-t border-gray-100 mt-2">
+                  <span>Total</span>
+                  <span className="text-[#be1e2d]">৳{finalTotal}</span>
                 </div>
               </div>
-            )) : (
-              <div className="bg-white border-2 border-dashed border-gray-200 rounded-[40px] py-20 text-center">
-                <FaShoppingBag size={50} className="mx-auto mb-4 text-gray-200" />
-                <p className="text-gray-400 font-bold">Your basket is feeling lonely!</p>
-              </div>
-            )}
-          </div>
 
-          {/* CHECKOUT SIDEBAR */}
-          <div className="sticky top-6">
-            <CheckoutBox
-              totalAmount={totalAmount}
-              cartItems={cartItems}
-              onAreaUpdate={setSelectedArea}
-              onRemoveRestaurant={handleRemoveRestaurant} // 🔥 Passing the same swal logic to checkout box
-              restaurantName={restaurantSlug?.replace(/-/g, ' ')}
-              onSuccess={(data) => { setOrderData(data); setShowSuccess(true); }}
-              onCancel={() => navigate(-1)}
-            />
+              <button 
+                onClick={handleConfirmOrder}
+                className="w-full mt-8 bg-[#be1e2d] text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-black transition-all active:scale-95"
+              >
+                {paymentMethod === 'Online' ? 'Confirm & Pay' : 'Place Order (COD)'} <FaPaperPlane />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* TOAST MESSAGE */}
-      {toast.show && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl z-[99999] animate-bounce">
-          {toast.type === 'remove' ? <FaTrashAlt className="text-red-400" /> : <FaCheckCircle className="text-green-400" />}
-          <span className="font-bold text-sm">{toast.message}</span>
-        </div>
-      )}
-
-      {showSuccess && orderData && (
-        <OrderSuccess {...orderData} onClose={() => setShowSuccess(false)} />
-      )}
+      {showSuccess && <OrderSuccess order={orderData} onClose={() => setShowSuccess(false)} />}
     </div>
   );
 };
