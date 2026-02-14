@@ -20,17 +20,9 @@ const CreationModal = ({ isOpen, onClose }) => {
       hoverBg: "hover:bg-blue-600", 
       action: () => window.open('https://wa.me/01640026138', '_blank')
     },
+  
     {
       id: 2,
-      title: "Menu Templates",
-      desc: "Browse 50+ professional designs",
-      icon: <FaLayerGroup />,
-      color: "bg-purple-50 text-purple-600",
-      hoverBg: "hover:bg-purple-600", 
-      action: () => navigate('/templates')
-    },
-    {
-      id: 3,
       title: "Quick Account",
       desc: "Login or Register your restaurant",
       icon: <FaUserPlus />,
@@ -111,12 +103,12 @@ const CreationModal = ({ isOpen, onClose }) => {
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight"
             >
-              {view === 'main' ? "Start Your Journey" : "Account Access"}
+              {view === 'main' ? "Start Your Journey With us" : "Account Access"}
             </motion.h2>
           </div>
 
           {/* Options Grid */}
-          <div className={`grid grid-cols-1 ${view === 'main' ? 'md:grid-cols-3' : 'sm:grid-cols-2 max-w-2xl mx-auto'} gap-8`}>
+          <div className={`grid grid-cols-1 ${view === 'main' ? 'md:grid-cols-2' : 'sm:grid-cols-2 max-w-2xl mx-auto'} gap-8`}>
             {(view === 'main' ? mainOptions : accountOptions).map((opt) => (
               <motion.div 
                 whileHover={{ y: -10 }}
@@ -144,7 +136,7 @@ const CreationModal = ({ isOpen, onClose }) => {
           </div>
 
           <div className="mt-12 text-center opacity-30">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em]">Food Menu BD Premium Experience</p>
+          
           </div>
         </motion.div>
       </div>
