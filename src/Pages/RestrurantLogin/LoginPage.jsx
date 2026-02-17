@@ -70,11 +70,7 @@ const LoginPage = () => {
         
         <div className="w-full md:w-[40%] h-[180px] md:h-full bg-slate-900 p-6 md:p-10 flex flex-col justify-between relative overflow-hidden text-white">
           <div className="relative z-10">
-            <div onClick={() => navigate('/')} className="flex items-center gap-2 mb-4 md:mb-12 cursor-pointer w-50 h-25 brightness-0 invert">
-              {/*<div className=" bg-red-600 rounded-lg flex items-center justify-center font-black text-base"></div>*/}
-              <span  classname ="w-half h-half object-contain" > <img src= '../../../src/assets/foodmenu.png' alt='FoodMenuBD'></img></span>
-              {/*<span className="text-sm md:text-lg font-black tracking-tight uppercase">FoodMenu<span className="text-red-500">BD</span></span>*/}
-            </div>
+          
 
             <h1 className="text-xl md:text-4xl font-black leading-tight mb-2 md:mb-4">
               Elevate your <br className="hidden md:block" /> 
@@ -86,7 +82,7 @@ const LoginPage = () => {
           </div>
 
           <div className="relative z-10 hidden sm:block">
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Secured by <span className="text-[12px] text-red-500">SMITH IT</span></p>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Secured by <span className="text-[12px] text-red-500"></span></p>
           </div>
           <div className="absolute top-0 right-0 h-full w-1 bg-gradient-to-b from-transparent via-red-500/20 to-transparent" />
         </div>
